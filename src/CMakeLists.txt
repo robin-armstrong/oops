@@ -36,6 +36,7 @@ oops/assimilation/FGMRES.h
 oops/assimilation/FGMRESMinimizer.h
 oops/assimilation/FtnTriDiagSpectrum.F90
 oops/assimilation/FullGMRES.h
+oops/assimilation/GaussLegendre.h
 oops/assimilation/GETKFSolver.h
 oops/assimilation/gletkfInterface.h
 oops/assimilation/gletkf_interface.f90
@@ -85,6 +86,7 @@ oops/assimilation/SaddlePointMatrix.h
 oops/assimilation/SaddlePointMinimizer.h
 oops/assimilation/SaddlePointPrecondMatrix.h
 oops/assimilation/SaddlePointVector.h
+oops/assimilation/SLCG.h
 oops/assimilation/SpectralLMP.h
 oops/assimilation/TriDiagSolve.h
 oops/assimilation/TriDiagSpectrum.h
@@ -1087,6 +1089,12 @@ ecbuild_add_test( TARGET  test_assimilation_tridiagsolve
                   SOURCES test/assimilation/TriDiagSolve.cc
                   ARGS    "test/testinput/empty.yaml"
                   LIBS    oops )
+
+ecbuild_add_executable(
+  TARGET  test_oops_quad_utils.x
+  SOURCES test/assimilation/QuadratureUtilities.cc
+  LIBS oops
+)
 
 if( HAVE_FCTEST )
 
