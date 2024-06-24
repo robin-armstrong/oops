@@ -103,6 +103,12 @@ template<typename MODEL, typename OBS> class CostJo : public CostTermBase<MODEL,
     multiplyCovar(const GeneralizedDepartures &) const override;
   std::unique_ptr<GeneralizedDepartures>
     multiplyCoInv(const GeneralizedDepartures &) const override;
+  
+    /// Multiply by \f$ R^{1/2}\f$ and \f$ R^{-1/2}\f$.
+  std::unique_ptr<GeneralizedDepartures>
+    multiplyCovarSqrt(const GeneralizedDepartures &) const override;
+  std::unique_ptr<GeneralizedDepartures>
+    multiplyCoInvSqrt(const GeneralizedDepartures &) const override;
 
   /// Provide new departure.
   std::unique_ptr<GeneralizedDepartures> newDualVector() const override;
@@ -361,6 +367,28 @@ CostJo<MODEL, OBS>::multiplyCoInv(const GeneralizedDepartures & v1) const {
   Log::trace() << "CostJo::multiplyCoInv start" << std::endl;
   std::unique_ptr<Departures_> y1(new Departures_(dynamic_cast<const Departures_ &>(v1)));
   Rmat_.inverseMultiply(*y1);
+  return std::move(y1);
+}
+
+// -----------------------------------------------------------------------------
+
+template<typename MODEL, typename OBS>
+std::unique_ptr<GeneralizedDepartures>
+CostJo<MODEL, OBS>::multiplyCovarSqrt(const GeneralizedDepartures & v1) const {
+  Log::trace() << "CostJo::multiplyCovarSqrt start" << std::endl;
+  std::unique_ptr<Departures_> y1(new Departures_(dynamic_cast<const Departures_ &>(v1)));
+  Rmat_.sqrtMultiply(*y1);
+  return std::move(y1);
+}
+
+// -----------------------------------------------------------------------------
+
+template<typename MODEL, typename OBS>
+std::unique_ptr<GeneralizedDepartures>
+CostJo<MODEL, OBS>::multiplyCoInvSqrt(const GeneralizedDepartures & v1) const {
+  Log::trace() << "CostJo::multiplyCoInvSqrt start" << std::endl;
+  std::unique_ptr<Departures_> y1(new Departures_(dynamic_cast<const Departures_ &>(v1)));
+  Rmat_.invSqrtMultiply(*y1);
   return std::move(y1);
 }
 
