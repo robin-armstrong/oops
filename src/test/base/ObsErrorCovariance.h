@@ -152,6 +152,22 @@ template <typename OBS> void testMultiplies() {
     // dy2 = R*R^P-1}*dy
     oops::Log::info() << "R*R^{-1}*dy: " << dy2 << std::endl;
     EXPECT(oops::is_close(dy2.rms(), dy.rms(), 1.e-10));
+
+    R.sqrtMultiply(dy1);
+    oops::Log::info() << "R^{1/2}*dy: " << dy1 << std::endl;
+    R.sqrtMultiply(dy1);
+    oops::Log::info() << "R^{1/2}*dy: " << dy1 << std::endl;
+    R.multiply(dy2);
+    oops::Log::info() << "R*dy: " << dy2 << std::endl;
+    EXPECT(oops::is_close(dy1.rms(), dy2.rms(), 1.e-10));
+
+    R.invSqrtMultiply(dy1);
+    oops::Log::info() << "R^{-1/2}*dy: " << dy1 << std::endl;
+    R.invSqrtMultiply(dy1);
+    oops::Log::info() << "R^{-1/2}*dy: " << dy1 << std::endl;
+    R.inverseMultiply(dy2);
+    oops::Log::info() << "R^{-1}*dy: " << dy2 << std::endl;
+    EXPECT(oops::is_close(dy1.rms(), dy2.rms(), 1.e-10));
   }
 }
 

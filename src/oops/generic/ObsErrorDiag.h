@@ -160,14 +160,14 @@ void ObsErrorDiag<OBS>::inverseMultiply(ObsVector_ & dy) const {
 
 template<typename OBS>
 void ObsErrorDiag<OBS>::sqrtMultiply(ObsVector_ & dy) const {
-  std::runtime_error("oops::ObsErrorDiag<OBS>::sqrtMultiply(oops::ObsVector<OBS> & dy) has not been implemeneted.");
+  dy *= stddev_;
 }
 
 // -----------------------------------------------------------------------------
 
 template<typename OBS>
 void ObsErrorDiag<OBS>::invSqrtMultiply(ObsVector_ & dy) const {
-  std::runtime_error("oops::ObsErrorDiag<OBS>::invSqrtMultiply(oops::ObsVector<OBS> & dy) has not been implemeneted.");
+  dy /= stddev_;
 }
 
 // -----------------------------------------------------------------------------

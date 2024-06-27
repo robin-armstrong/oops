@@ -16,8 +16,15 @@ namespace oops {
 void printNormReduction(int iteration, const double & grad, const double & norm) {
   Log::info() << "  Residual norm (" << std::setw(2) << iteration << ") = "
               << util::full_precision(grad) << std::endl
-              << "  Norm reduction (" << std::setw(2) << iteration << ") = "
+              << "  Relative norm reduction (" << std::setw(2) << iteration << ") = "
               << util::full_precision(norm) << std::endl << std::endl;
+}
+
+void printQuadraticCostReduction(int iteration, const double & cost, const double & reduc) {
+  Log::info() << "  Quadratic cost (" << std::setw(2) << iteration << ") = "
+              << util::full_precision(cost) << std::endl
+              << "  Absolute cost reduction (" << std::setw(2) << iteration << ") = "
+              << util::full_precision(reduc) << std::endl;
 }
 
 void printQuadraticCostFunction(int iteration, const double & costJ,

@@ -24,6 +24,8 @@ namespace oops {
 /// Prints to Log::info gradient reduction \p grad and normalized gradient reduction \p norm
 /// for iteration \p iteration
 void printNormReduction(int iteration, const double & grad, const double & norm);
+/// Prints to Log::info cost function value \p cost and reduction factor \p reduc
+void printQuadraticCostReduction(int iteration, const double & cost, const double & reduc);
 /// Prints to Log::info cost function values for \p costJ, \p costJb, \p costJoJc for
 /// iteration \p iteration
 void printQuadraticCostFunction(int iteration, const double & costJ, const double & costJb,

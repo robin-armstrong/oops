@@ -86,7 +86,9 @@ double SLCG(std::vector<VECTOR> & X, const AMATRIX & A,
   VECTOR              testvec(b);
   VECTOR              r(b);
   std::vector<VECTOR> C;
-
+  Eigen::MatrixXf     ritz(maxiter, maxiter);
+  
+  ritz.setZero();
   X.clear();
 
   /* The first block of code initializes all the solver
@@ -103,6 +105,7 @@ double SLCG(std::vector<VECTOR> & X, const AMATRIX & A,
 
   A.multiply(q, prod);
   alpha = dot_product(q, prod);
+  ritz(0, 0) = alpha;
 
   rho = prod;
   rho.axpy(-alpha, q);
@@ -135,6 +138,9 @@ double SLCG(std::vector<VECTOR> & X, const AMATRIX & A,
 
   double rnrm2         = dot_product(rho, rho);
   double normReduction = rnrm2 / bnrm2;
+  double cost0         = .5*(dot_product(X[min_lambda_index], r) - 2*dot_product(X[min_lambda_index], b));
+  double cost          = cost0;
+  double costReduction;
 
   printNormReduction(1, rnrm2, normReduction);
   
@@ -154,6 +160,10 @@ double SLCG(std::vector<VECTOR> & X, const AMATRIX & A,
       alpha = dot_product(q, prod);
       beta  = sqrt(dot_product(rho, rho));
       rho   = prod; rho.axpy(-alpha, q); rho.axpy(-beta, u);
+
+      ritz(jiter, jiter)     = alpha;
+      ritz(jiter-1, jiter)   = beta;
+      ritz(jiter, jiter - 1) = beta;
       
       // setting up the next vector that we'll need a matrix-vector product with
       testvec  = rho;
@@ -181,10 +191,15 @@ double SLCG(std::vector<VECTOR> & X, const AMATRIX & A,
       r     = rho; r *= v[min_lambda_index];
       rnrm2 = dot_product(r, r);
 
+      // updating the cost function
+      cost          = .5*(dot_product(X[min_lambda_index], r) - 2*dot_product(X[min_lambda_index], b));
+      costReduction = cost0 - cost;
+
       // checking termination conditions
       normReduction = rnrm2/bnrm2;
       Log::info() << "SLCG end of iteration " << jiter+1 << std::endl;
       printNormReduction(jiter+1, rnrm2, normReduction);
+      printQuadraticCostReduction(jiter+1, cost, costReduction);
 
       if (normReduction <= tolerance) {
           Log::info() << "SLCG: Achieved required reduction in residual norm." << std::endl;
