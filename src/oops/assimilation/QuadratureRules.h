@@ -1,20 +1,16 @@
 /*
- * (C) Copyright 2009-2016 ECMWF.
+ * (C) Copyright 2024 UCAR.
  *
  * This software is licensed under the terms of the Apache Licence Version 2.0
  * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
- * In applying this licence, ECMWF does not waive the privileges and immunities
- * granted to it by virtue of its status as an intergovernmental organisation nor
- * does it submit to any jurisdiction.
  */
 
-#ifndef OOPS_ASSIMILATION_GAUSSLEGENDRE_H_
-#define OOPS_ASSIMILATION_GAUSSLEGENDRE_H_
+#ifndef OOPS_ASSIMILATION_QUADRATURERULES_H_
+#define OOPS_ASSIMILATION_QUADRATURERULES_H_
 
 #include <iostream>
 #include <Eigen/Dense>
 #include <Eigen/Eigenvalues>
-
 #include <vector>
 
 #include "oops/util/Logger.h"
@@ -23,7 +19,7 @@ namespace oops {
 
 //-------------------------------------------------------------------------------------------------
 // Computes nodes and weights for Gauss-Legendre quadrature using the Golub-Welsch algorithm.
-void GaussLegendre(const int quadsize, std::vector<double>& nodes, std::vector<double>& weights) {
+void gaussLegendre(const int quadsize, std::vector<double>& nodes, std::vector<double>& weights) {
   Log::info() << "GaussLegendre: Starting and forming Golub-Welsch matrix." << std::endl;
   
   Eigen::MatrixXf GW(quadsize, quadsize);
@@ -43,12 +39,28 @@ void GaussLegendre(const int quadsize, std::vector<double>& nodes, std::vector<d
 
   Log::info() << "GaussLegendre: Calculating quadrature weights and nodes." << std::endl;
 
+  nodes.clear();
+  weights.clear();
+
   for(int q = 0; q < quadsize; q++) {
-    nodes[q]   = evals(q);
-    weights[q] = 2*pow(evecs(0, q), 2);
+    nodes.push_back(evals(q));
+    weights.push_back(2*pow(evecs(0, q), 2));
+  }
+}
+
+void prepareEAKFQuad(const int quadsize, std::vector<double>& nodes, std::vector<double>& weights) {
+  const double PI = 4*atan(1);
+  double s, w;
+  
+  for (int q = 0; q < quadsize; q++) {
+    s = pow(tan(.25*PI*(nodes[q] + 1)), 2);
+    w = .5*weights[q]/pow(cos(.25*PI*(nodes[q] + 1)), 2);
+    
+    nodes[q]   = s + 1;
+    weights[q] = w/(s + 1);
   }
 }
 
 }  // namespace oops
 
-#endif  // OOPS_ASSIMILATION_GAUSSLEGENDRE_H_
+#endif  // OOPS_ASSIMILATION_QUADRATURERULES_H_

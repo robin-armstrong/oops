@@ -1,12 +1,8 @@
 /*
- * (C) Copyright 2009-2016 ECMWF.
- * (C) Crown Copyright 2023, the Met Office
+ * (C) Copyright 2024 UCAR.
  *
  * This software is licensed under the terms of the Apache Licence Version 2.0
  * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
- * In applying this licence, ECMWF does not waive the privileges and immunities
- * granted to it by virtue of its status as an intergovernmental organisation nor
- * does it submit to any jurisdiction.
  */
 
 #ifndef OOPS_RUNS_QUADRATUREUPDATE_H_
@@ -14,7 +10,6 @@
 
 #include <memory>
 #include <string>
-
 
 #include "eckit/config/LocalConfiguration.h"
 #include "oops/assimilation/ControlVariable.h"
@@ -27,6 +22,7 @@
 #include "oops/assimilation/HMatrix.h"
 #include "oops/assimilation/RinvSqrtMatrix.h"
 #include "oops/assimilation/NormalizedHBHtMatrix.h"
+#include "oops/assimilation/QuadratureSolver.h"
 #include "oops/assimilation/SLCG.h"
 #include "oops/base/Geometry.h"
 #include "oops/base/Increment.h"
@@ -86,7 +82,7 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
   typedef HMatrix<MODEL, OBS>               H_;
   typedef RinvSqrtMatrix<MODEL, OBS>        R_invsqrt_;
   typedef NormalizedHBHtMatrix<MODEL, OBS>  NormalHBHt_;
-
+  typedef QuadratureSolver<MODEL, OBS>      QuadSolver_;
 
   typedef QuadratureUpdateParameters<MODEL, OBS> QuadParams_;
 
@@ -108,13 +104,11 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
     Log::trace() << "QuadratureUpdate: execute start" << std::endl;
     util::printRunStats("QuadratureUpdate start");
 
-    std::cout << "DEBUGGING: deserializing parameters." << std::endl;
 //  Deserialize parameters
     QuadParams_ params;
     if (validate) params.validate(fullConfig);
     params.deserialize(fullConfig);
 
-    std::cout << "DEBUGGING: setting up dummy iteration settings." << std::endl;
 //  Setup outer loop
     eckit::LocalConfiguration varConf(fullConfig, "variational");
     std::vector<eckit::LocalConfiguration> iterconfs;
@@ -124,19 +118,17 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
 /// time within the assimilation window can be different (3D-Var vs. 4D-Var),
 /// it can be 3D or 4D (strong vs weak constraint), etc...
 
-    std::cout << "DEBUGGING: setting up cost function." << std::endl;
 //  Setup cost function
     std::unique_ptr<CostFunction<MODEL, OBS>>
       J(CostFactory<MODEL, OBS>::create(params.cfConfig, this->getComm()));
     const JbTotal_ & Jb = J->jb();
 
-    std::cout << "DEBUGGING: getting model and auxiliary information." << std::endl;
 //  Get the forecast mean and model auxiliary information
     CtrlVar_ x_bg(Jb.getBackground());
     ModelAux_ & maux = x_bg.modVar();
     ObsAux_ & oaux   = x_bg.obsVar();
 
-    std::cout << "DEBUGGING: about to setup postprocessor." << std::endl;
+//  Setup post-processor
     PostProcessor<State_> post;
     if (iterconfs[0].has("prints")) {
       const eckit::LocalConfiguration prtConfig(iterconfs[0], "prints");
@@ -147,50 +139,31 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
 /// the geometry information. Without this, the program will segfault upon
 /// trying to initialize a ControlIncrement.
 
-    std::cout << "DEBUGGING: evaluating cost function and setup linearization." << std::endl;
     iterconfs[0].set("linearize", true);
     J->evaluate(x_bg, iterconfs[0], post);
     util::printRunStats("QuadratureUpdate linearize " + std::to_string(0));
 
-    std::cout << "DEBUGGING: setting up independent geometry object." << std::endl;
 //  Setup independent geometry configuration object for reading ensemble members
     const Geometry_ geometry(params.cfConfig.value().getSubConfiguration("geometry"), this->getComm(), mpi::myself());
 
-    std::cout << "DEBUGGING: reading ensemble state." << std::endl;
 //  Get the ensemble state to be updated
     State4D_ x_ens_state(geometry, params.ensMemberConfig);
     Log::test() << "Ensemble state: " << x_ens_state << std::endl;
 
-    std::cout << "DEBUGGING: wrapping ensemble state in a control variable." << std::endl;
 //  Wrapping the ensemble state in a control variable
     std::shared_ptr<State4D_>  xens_ptr(&x_ens_state);
     std::shared_ptr<ModelAux_> maux_ptr(&maux);
     std::shared_ptr<ObsAux_>   oaux_ptr(&oaux);
     CtrlVar_                   x_ens(xens_ptr, maux_ptr, oaux_ptr);
 
-    std::cout << "DEBUGGING: taking difference with forecast mean." << std::endl;
 //  Taking difference between background and ensemble state to form the increment that will be transformed.
-    CtrlInc_ dx(Jb);
-    dx.diff(x_ens, x_bg);
+    CtrlInc_ dx_in(Jb);
+    dx_in.diff(x_ens, x_bg);
 
-    std::cout << "DEBUGGING: setting up matrices." << std::endl;
-//  Setting up relevant matrices.
-    H_ H_mat(*J);
-    R_invsqrt_ R_invsqrt_mat(*J);
-    NormalHBHt_ NormalHBHt_mat(*J);
+    QuadSolver_ quadsolver(*J);
+    CtrlInc_ dx_out = quadsolver.solve(dx_in, 20, 100, 1e-2);
 
-    std::cout << "DEBUGGING: applying adjoint of linearized obs operator." << std::endl;
-//  Applying adjoint of linearized observation operator.
-    Dual_ dy, dz;
-    H_mat.multiply(dx, dy);
-    R_invsqrt_mat.multiply(dy, dz);
-
-    std::vector<Dual_> X;
-    std::vector<double> lambda;
-    lambda.push_back(1);
-    int maxiter = 500;
-
-    SLCG(X, NormalHBHt_mat, dz, lambda, 1, maxiter, 1e-2);
+    std::cout << "DEBUGGING: Finished quadrature solve." << std::endl;
 
 //     std::cout << "DEBUGGING: normalizing by obs-error covariance." << std::endl;
 // //  Normalizing by the obs-error covariance.

@@ -14,7 +14,7 @@
 #include "eckit/testing/Test.h"
 
 #include "oops/../test/TestEnvironment.h"
-#include "oops/assimilation/GaussLegendre.h"
+#include "oops/assimilation/QuadratureRules.h"
 #include "oops/assimilation/SLCG.h"
 #include "oops/base/DiagonalMatrix.h"
 #include "oops/runs/Test.h"
@@ -37,7 +37,7 @@ namespace test {
     std::vector<double> nodes(quadsize, 0);
     std::vector<double> weights(quadsize, 0);
 
-    oops::GaussLegendre(quadsize, nodes, weights);
+    oops::gaussLegendre(quadsize, nodes, weights);
 
     double pi_appx    = 0;
     double min_node   = nodes[0];
@@ -72,23 +72,27 @@ namespace test {
     Vector3D X1_expected(.25, 1.0/3, .5);
     Vector3D X2_expected(.2, .25, 1.0/3);
     
-    const int maxiter          = 10;
-    const double tolerance     = 1e-9;
-    const double normReduction = SLCG(X, A, b, lambda, 3, maxiter, tolerance);
+    const int maxiter                 = 10;
+    const double solution_tolerance   = 1e-9;
+    const double reduction_tolerance  = 1e-9;
+    const double eigenvalue_tolerance = 1e-3;
+    std::vector<double> results       = SLCG(X, A, b, lambda, 3, maxiter, reduction_tolerance);
 
-    EXPECT(oops::is_close_absolute(normReduction, 0., tolerance));
+    EXPECT(oops::is_close_absolute(results[0], 0., reduction_tolerance));
+    EXPECT(oops::is_close_absolute(results[1], 1., eigenvalue_tolerance));
+    EXPECT(oops::is_close_absolute(results[2], 3., eigenvalue_tolerance));
 
-    EXPECT(oops::is_close_absolute(X[0].x(), X0_expected.x(), tolerance));
-    EXPECT(oops::is_close_absolute(X[0].y(), X0_expected.y(), tolerance));
-    EXPECT(oops::is_close_absolute(X[0].z(), X0_expected.z(), tolerance));
+    EXPECT(oops::is_close_absolute(X[0].x(), X0_expected.x(), solution_tolerance));
+    EXPECT(oops::is_close_absolute(X[0].y(), X0_expected.y(), solution_tolerance));
+    EXPECT(oops::is_close_absolute(X[0].z(), X0_expected.z(), solution_tolerance));
 
-    EXPECT(oops::is_close_absolute(X[1].x(), X1_expected.x(), tolerance));
-    EXPECT(oops::is_close_absolute(X[1].y(), X1_expected.y(), tolerance));
-    EXPECT(oops::is_close_absolute(X[1].z(), X1_expected.z(), tolerance));
+    EXPECT(oops::is_close_absolute(X[1].x(), X1_expected.x(), solution_tolerance));
+    EXPECT(oops::is_close_absolute(X[1].y(), X1_expected.y(), solution_tolerance));
+    EXPECT(oops::is_close_absolute(X[1].z(), X1_expected.z(), solution_tolerance));
 
-    EXPECT(oops::is_close_absolute(X[2].x(), X2_expected.x(), tolerance));
-    EXPECT(oops::is_close_absolute(X[2].y(), X2_expected.y(), tolerance));
-    EXPECT(oops::is_close_absolute(X[2].z(), X2_expected.z(), tolerance));
+    EXPECT(oops::is_close_absolute(X[2].x(), X2_expected.x(), solution_tolerance));
+    EXPECT(oops::is_close_absolute(X[2].y(), X2_expected.y(), solution_tolerance));
+    EXPECT(oops::is_close_absolute(X[2].z(), X2_expected.z(), solution_tolerance));
   }
 
   CASE("assimilation/QuadratureUtilities/GaussLegendre") {

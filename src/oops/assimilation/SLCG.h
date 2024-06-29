@@ -1,12 +1,8 @@
 /*
- * (C) Copyright 2009-2016 ECMWF.
- * (C) Crown Copyright 2024, the Met Office.
- * 
+ * (C) Copyright 2024 UCAR.
+ *
  * This software is licensed under the terms of the Apache Licence Version 2.0
- * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0. 
- * In applying this licence, ECMWF does not waive the privileges and immunities 
- * granted to it by virtue of its status as an intergovernmental organisation nor
- * does it submit to any jurisdiction.
+ * which can be obtained at http://www.apache.org/licenses/LICENSE-2.0.
  */
 
 #ifndef OOPS_ASSIMILATION_SLCG_H_
@@ -15,6 +11,8 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include <Eigen/Dense>
+#include <Eigen/Eigenvalues>
 
 #include "oops/assimilation/MinimizerUtils.h"
 #include "oops/assimilation/rotmat.h"
@@ -46,8 +44,13 @@ namespace oops {
  * -    tol      = error tolerance
  *
  * On exit, X[j] will contain the solution to (A + lambda[j]I)x = b for
- * j = 0, 1, ..., (nlambdas - 1). The return value is the achieved reduction
- * in residual norm, measured with respect to the worst-conditioned system 
+ * j = 0, 1, ..., (nlambdas - 1). The return value is a vector <r, lmin, lmax>
+ * where:
+ * -    r    = achieved reduction in residual norm.
+ * -    lmin = Rayleigh-Ritz estimate of A's smallest eigenvalue.
+ * -    lmax = Rayleigh-Ritz estimate of A's largest eigenvalue.
+ * 
+ * Norm reduction is measured with respect to the worst-conditioned system 
  * being solved, i.e., the system with the smallest value of lambda.
  *
  * Iteration will stop if the maximum iteration limit "maxiter" is reached
@@ -70,10 +73,10 @@ namespace oops {
  */
 
 template <typename VECTOR, typename AMATRIX>
-double SLCG(std::vector<VECTOR> & X, const AMATRIX & A, 
-            const VECTOR & b, const std::vector<double> lambda,
-            const int nlambdas, const int maxiter,
-            const double tolerance) {  
+std::vector<double> SLCG(std::vector<VECTOR> & X, const AMATRIX & A, 
+                    const VECTOR & b, const std::vector<double> lambda,
+                    const int nlambdas, const int maxiter,
+                    const double tolerance) {  
   double              alpha;
   double              beta;
   std::vector<double> d;
@@ -94,7 +97,7 @@ double SLCG(std::vector<VECTOR> & X, const AMATRIX & A,
   /* The first block of code initializes all the solver
    * data and, simultaneously, performs the first iteration. */
 
-  Log::info() << " SLCG Starting Iteration 1 and initializing" << std::endl;
+  Log::info() << "SLCG: Starting iteration 1 and initializing" << std::endl;
 
   double bnrm2 = dot_product(b, b);
 
@@ -104,7 +107,7 @@ double SLCG(std::vector<VECTOR> & X, const AMATRIX & A,
   q     = b; q *= (1/beta);
 
   A.multiply(q, prod);
-  alpha = dot_product(q, prod);
+  alpha      = dot_product(q, prod);
   ritz(0, 0) = alpha;
 
   rho = prod;
@@ -119,7 +122,7 @@ double SLCG(std::vector<VECTOR> & X, const AMATRIX & A,
 
   /* initializing implicit LDLt factorization of A's Krylov projection,
    * along with solutions and search directions. */
-  for(int i = 0; i < nlambdas; i++) {
+  for (int i = 0; i < nlambdas; i++) {
     if(lambda[i] < min_lambda) {
       min_lambda       = lambda[i];
       min_lambda_index = i;
@@ -140,18 +143,21 @@ double SLCG(std::vector<VECTOR> & X, const AMATRIX & A,
   double normReduction = rnrm2 / bnrm2;
   double cost0         = .5*(dot_product(X[min_lambda_index], r) - 2*dot_product(X[min_lambda_index], b));
   double cost          = cost0;
-  double costReduction;
+  double costReduction = 0;
 
-  printNormReduction(1, rnrm2, normReduction);
+  printNormAndCostReduction(1, rnrm2, normReduction, cost, costReduction);
   
   Log::info() << std::endl;
+
+  int jiter = 0;
 
   if (normReduction <= tolerance) {
     Log::info() << "SLCG: Achieved required reduction in residual norm." << std::endl;
   } else {
     // SLCG iteration
-    for (int jiter = 1; jiter < maxiter; ++jiter) {
-      Log::info() << " SLCG Starting Iteration " << jiter+1 << std::endl;
+    while(jiter + 1 < maxiter) {
+      jiter += 1;
+      Log::info() << "SLCG: Starting iteration " << jiter+1 << std::endl;
 
       // updating the Lanczos process
       A.multiply(testvec, prod);
@@ -161,25 +167,20 @@ double SLCG(std::vector<VECTOR> & X, const AMATRIX & A,
       beta  = sqrt(dot_product(rho, rho));
       rho   = prod; rho.axpy(-alpha, q); rho.axpy(-beta, u);
 
-      ritz(jiter, jiter)     = alpha;
-      ritz(jiter-1, jiter)   = beta;
-      ritz(jiter, jiter - 1) = beta;
+      ritz(jiter, jiter)   = alpha;
+      ritz(jiter-1, jiter) = beta;
+      ritz(jiter, jiter-1) = beta;
       
       // setting up the next vector that we'll need a matrix-vector product with
       testvec  = rho;
       testvec *= 1/sqrt(dot_product(rho, rho));
 
-      // updating implicit LDLt factorization of A's Krylov projection
       for(int i = 0; i < nlambdas; i++) {
+        // updating implicit LDLt factorization of A's Krylov projection
         l[i] = beta/d[i];
-      }
-
-      for(int i = 0; i < nlambdas; i++) {
         d[i] = alpha + lambda[i] - beta*l[i];
-      }
 
-      // updating search directions and solutions
-      for(int i = 0; i < nlambdas; i++) {
+        // updating search directions and solutions
         C[i] *= -l[i];
         C[i] += q;
         v[i] *= -beta/d[i];
@@ -197,21 +198,29 @@ double SLCG(std::vector<VECTOR> & X, const AMATRIX & A,
 
       // checking termination conditions
       normReduction = rnrm2/bnrm2;
-      Log::info() << "SLCG end of iteration " << jiter+1 << std::endl;
-      printNormReduction(jiter+1, rnrm2, normReduction);
-      printQuadraticCostReduction(jiter+1, cost, costReduction);
+      Log::info() << "SLCG: End of iteration " << jiter+1 << std::endl;
+      printNormAndCostReduction(jiter+1, rnrm2, normReduction, cost, costReduction);
 
       if (normReduction <= tolerance) {
           Log::info() << "SLCG: Achieved required reduction in residual norm." << std::endl;
-          jiter += 1;
           break;
       }
     }
   }
 
-  Log::info() << "SLCG: end" << std::endl;
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> eigensolver(jiter + 1);
+  eigensolver.compute(ritz(Eigen::seq(0, jiter), Eigen::seq(0, jiter)));
+  Eigen::VectorXf evals = eigensolver.eigenvalues();
 
-  return normReduction;
+  std::vector<double> results;
+  results.push_back(normReduction);
+  results.push_back(evals(0));
+  results.push_back(evals(jiter));
+
+  Log::info() << "SLCG: Eigenvalue estimates: min = " << results[1] << ", max = " << results[2] << "." << std::endl;
+  Log::info() << "SLCG: End." << std::endl;
+
+  return results;
 }
 
 }  // namespace oops
