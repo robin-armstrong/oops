@@ -44,7 +44,7 @@ namespace oops {
  * -    tol      = error tolerance
  *
  * On exit, X[j] will contain the solution to (A + lambda[j]I)x = b for
- * j = 0, 1, ..., (nlambdas - 1). The return value is a vector <r, lmin, lmax>
+ * j = 0, 1, ..., (nlambdas - 1). SLCG returns a vector <r, lmin, lmax>
  * where:
  * -    r    = achieved reduction in residual norm.
  * -    lmin = Rayleigh-Ritz estimate of A's smallest eigenvalue.

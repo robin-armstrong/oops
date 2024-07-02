@@ -36,7 +36,7 @@ oops/assimilation/FGMRES.h
 oops/assimilation/FGMRESMinimizer.h
 oops/assimilation/FtnTriDiagSpectrum.F90
 oops/assimilation/FullGMRES.h
-oops/assimilation/GaussLegendre.h
+oops/assimilation/QuadratureRules.h
 oops/assimilation/GETKFSolver.h
 oops/assimilation/gletkfInterface.h
 oops/assimilation/gletkf_interface.f90
@@ -506,8 +506,12 @@ test/assimilation/SolveMatrixEquation.h
 test/assimilation/SpectralLMP.h
 test/assimilation/TestVector3D.h
 test/assimilation/TriDiagSolve.h
+test/assimilation/Vector2D.cc
+test/assimilation/Vector2D.h
 test/assimilation/Vector3D.cc
 test/assimilation/Vector3D.h
+test/assimilation/Vector4D.cc
+test/assimilation/Vector4D.h
 
 test/base/FieldSets.h
 test/base/Fortran.h
