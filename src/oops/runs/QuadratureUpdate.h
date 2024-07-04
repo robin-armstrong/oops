@@ -14,27 +14,17 @@
 #include "eckit/config/LocalConfiguration.h"
 #include "oops/assimilation/ControlVariable.h"
 #include "oops/assimilation/ControlIncrement.h"
-#include "oops/assimilation/DualVector.h"
 #include "oops/assimilation/CostFunction.h"
 #include "oops/assimilation/IncrementalAssimilation.h"
 #include "oops/assimilation/instantiateCostFactory.h"
 #include "oops/assimilation/instantiateMinFactory.h"
-#include "oops/assimilation/HMatrix.h"
-#include "oops/assimilation/RinvSqrtMatrix.h"
-#include "oops/assimilation/NormalizedHBHtMatrix.h"
 #include "oops/assimilation/QuadratureSolver.h"
-#include "oops/assimilation/SLCG.h"
 #include "oops/base/Geometry.h"
-#include "oops/base/Increment.h"
 #include "oops/base/instantiateCovarFactory.h"
 #include "oops/base/instantiateObsFilterFactory.h"
 #include "oops/base/PostProcessor.h"
 #include "oops/base/State.h"
 #include "oops/base/State4D.h"
-#include "oops/base/StateInfo.h"
-#include "oops/base/StateWriter.h"
-#include "oops/base/StructuredGridPostProcessor.h"
-#include "oops/base/StructuredGridWriter.h"
 #include "oops/generic/instantiateLinearModelFactory.h"
 #include "oops/generic/instantiateNormFactory.h"
 #include "oops/generic/instantiateObsErrorFactory.h"
@@ -72,19 +62,13 @@ class QuadratureUpdateParameters : public ApplicationParameters {
 
 template <typename MODEL, typename OBS> class QuadratureUpdate : public Application {
   typedef Geometry<MODEL>                   Geometry_;
-  typedef Increment<MODEL>                  Increment_;
   typedef ControlVariable<MODEL, OBS>       CtrlVar_;
   typedef ControlIncrement<MODEL, OBS>      CtrlInc_;
-  typedef DualVector<MODEL, OBS>            Dual_;
   typedef State<MODEL>                      State_;
   typedef State4D<MODEL>                    State4D_;
-  typedef Model<MODEL>                      Model_;
   typedef ModelAuxControl<MODEL>            ModelAux_;
   typedef ObsAuxControls<OBS>               ObsAux_;
   typedef CostJbTotal<MODEL, OBS>           JbTotal_;
-  typedef HMatrix<MODEL, OBS>               H_;
-  typedef RinvSqrtMatrix<MODEL, OBS>        R_invsqrt_;
-  typedef NormalizedHBHtMatrix<MODEL, OBS>  NormalHBHt_;
   typedef QuadratureSolver<MODEL, OBS>      QuadSolver_;
 
   typedef QuadratureUpdateParameters<MODEL, OBS> QuadParams_;
@@ -126,7 +110,7 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
       J(CostFactory<MODEL, OBS>::create(params.cfConfig, this->getComm()));
     const JbTotal_ & Jb = J->jb();
 
-//  Get the forecast mean and model auxiliary information
+//  Get the forecast mean and auxiliary information for model and obs
     CtrlVar_ x0(Jb.getBackground());
     ModelAux_ & maux = x0.modVar();
     ObsAux_ & oaux   = x0.obsVar();
@@ -174,7 +158,6 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
     CtrlVar_ xens_an_ctrl(x0);
     J->addIncrement(xens_an_ctrl, dx_an);
     State4D_ xens_an_state = xens_an_ctrl.states();
-    Log::test() << "Analysis ensemble state: " << xens_an_state << std::endl;
 
 //  Save analysis ensemble member
     eckit::LocalConfiguration outConfig = params.outputConfig.value();
@@ -186,7 +169,7 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
   }
 // -----------------------------------------------------------------------------
   void validateConfig(const eckit::Configuration & fullConfig) const override {
-    // Note: Variational app doesn't have application level Parameters yet;
+    // Note: QuadratureUpdate app doesn't have application level Parameters yet;
     // not validating anything.
   }
 // -----------------------------------------------------------------------------
@@ -198,4 +181,4 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
 };
 
 }  // namespace oops
-#endif  // OOPS_RUNS_VARIATIONAL_H_
+#endif  // OOPS_RUNS_QUADRATUREUPDATE_H_

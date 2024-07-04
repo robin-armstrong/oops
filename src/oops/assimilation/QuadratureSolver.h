@@ -14,59 +14,25 @@
 #include <utility>
 #include <vector>
 
-#include "eckit/config/LocalConfiguration.h"
-#include "oops/assimilation/ControlVariable.h"
 #include "oops/assimilation/ControlIncrement.h"
 #include "oops/assimilation/DualVector.h"
 #include "oops/assimilation/CostFunction.h"
 #include "oops/assimilation/QuadratureRules.h"
-#include "oops/assimilation/IncrementalAssimilation.h"
-#include "oops/assimilation/instantiateCostFactory.h"
-#include "oops/assimilation/instantiateMinFactory.h"
 #include "oops/assimilation/HMatrix.h"
 #include "oops/assimilation/HtMatrix.h"
 #include "oops/assimilation/BMatrix.h"
 #include "oops/assimilation/RinvSqrtMatrix.h"
 #include "oops/assimilation/NormalizedHBHtMatrix.h"
 #include "oops/assimilation/SLCG.h"
-#include "oops/base/Geometry.h"
-#include "oops/base/Increment.h"
-#include "oops/base/instantiateCovarFactory.h"
-#include "oops/base/instantiateObsFilterFactory.h"
-#include "oops/base/PostProcessor.h"
-#include "oops/base/State.h"
-#include "oops/base/State4D.h"
-#include "oops/base/StateInfo.h"
-#include "oops/base/StateWriter.h"
-#include "oops/base/StructuredGridPostProcessor.h"
-#include "oops/base/StructuredGridWriter.h"
-#include "oops/generic/instantiateLinearModelFactory.h"
-#include "oops/generic/instantiateNormFactory.h"
-#include "oops/generic/instantiateObsErrorFactory.h"
-#include "oops/mpi/mpi.h"
-#include "oops/util/DateTime.h"
 #include "oops/util/Logger.h"
-#include "oops/util/parameters/Parameter.h"
-#include "oops/util/parameters/Parameters.h"
-#include "oops/util/parameters/RequiredParameter.h"
-#include "oops/util/printRunStats.h"
 
 namespace oops {
 
 template <typename MODEL, typename OBS>
 class QuadratureSolver {
-  typedef Geometry<MODEL>                   Geometry_;
-  typedef Increment<MODEL>                  Increment_;
   typedef CostFunction<MODEL, OBS>          CostFct_;
-  typedef ControlVariable<MODEL, OBS>       CtrlVar_;
   typedef ControlIncrement<MODEL, OBS>      CtrlInc_;
   typedef DualVector<MODEL, OBS>            Dual_;
-  typedef State<MODEL>                      State_;
-  typedef State4D<MODEL>                    State4D_;
-  typedef Model<MODEL>                      Model_;
-  typedef ModelAuxControl<MODEL>            ModelAux_;
-  typedef ObsAuxControls<OBS>               ObsAux_;
-  typedef CostJbTotal<MODEL, OBS>           JbTotal_;
   typedef HMatrix<MODEL, OBS>               H_;
   typedef HtMatrix<MODEL, OBS>              Ht_;
   typedef BMatrix<MODEL, OBS>               B_;
