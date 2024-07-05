@@ -100,10 +100,6 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
     std::vector<eckit::LocalConfiguration> iterconfs;
     varConf.get("iterations", iterconfs);
 
-/// The background is constructed inside the cost function because its valid
-/// time within the assimilation window can be different (3D-Var vs. 4D-Var),
-/// it can be 3D or 4D (strong vs weak constraint), etc...
-
 //  Setup cost function
     std::unique_ptr<CostFunction<MODEL, OBS>>
       J(CostFactory<MODEL, OBS>::create(params.cfConfig, this->getComm()));
@@ -143,16 +139,16 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
     CtrlVar_                   xens_bg_ctrl(xens_ptr, maux_ptr, oaux_ptr);
 
 //  Taking difference between background and ensemble state to form the background increment.
-    CtrlInc_ dx_bg(Jb);
-    dx_bg.diff(xens_bg_ctrl, x0);
+    CtrlInc_ dx(Jb);
+    dx.diff(xens_bg_ctrl, x0);
 
 //  Computing the analysis increment via numerical quadrature.
     QuadSolver_ quadsolver(*J);
-    CtrlInc_ dx_an = quadsolver.solve(params.quadConfig.value(), dx_bg);
+    quadsolver.solve(params.quadConfig.value(), dx);
     
 //  Add the analysis increment to the background, forming an analysis ensemble member.
     CtrlVar_ xens_an_ctrl(x0);
-    J->addIncrement(xens_an_ctrl, dx_an);
+    J->addIncrement(xens_an_ctrl, dx);
     State4D_ xens_an_state = xens_an_ctrl.states();
 
 //  Save analysis ensemble member

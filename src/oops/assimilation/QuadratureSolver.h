@@ -43,30 +43,30 @@ class QuadratureSolver {
   public:
     QuadratureSolver(const CostFct_ & J);
     ~QuadratureSolver() {}
-    ControlIncrement<MODEL, OBS> solve(const eckit::Configuration & config, CtrlInc_ dx);
+    void solve(const eckit::Configuration & config, CtrlInc_ dx);
 
   private:
-    H_          H_mat;
-    Ht_         Ht_mat;
-    B_          B_mat;
-    R_invsqrt_  R_invsqrt_mat;
-    NormalHBHt_ NormalHBHt_mat;
-    double      pi;
+    H_          H_mat_;
+    Ht_         Ht_mat_;
+    B_          B_mat_;
+    R_invsqrt_  R_invsqrt_mat_;
+    NormalHBHt_ NormalHBHt_mat_;
+    double      PI;
 };
 
 // =============================================================================
 
 template<typename MODEL, typename OBS>
 QuadratureSolver<MODEL, OBS>::QuadratureSolver(const CostFct_ & J)
-  : H_mat(J), Ht_mat(J), B_mat(J), R_invsqrt_mat(J), NormalHBHt_mat(J)
+  : H_mat_(J), Ht_mat_(J), B_mat_(J), R_invsqrt_mat_(J), NormalHBHt_mat_(J)
 {
-  this->pi = 4*atan(1);
+  this->PI = 4*atan(1);
 }
 
 // -----------------------------------------------------------------------------
 
 template<typename MODEL, typename OBS>
-ControlIncrement<MODEL, OBS> QuadratureSolver<MODEL, OBS>::solve(const eckit::Configuration & config, CtrlInc_ dx) {
+void QuadratureSolver<MODEL, OBS>::solve(const eckit::Configuration & config, CtrlInc_ dx) {
   Log::info() << "QuadratureSolver: Starting." << std::endl;
 
   int quadsize     = config.getInt("quadsize");
@@ -79,10 +79,8 @@ ControlIncrement<MODEL, OBS> QuadratureSolver<MODEL, OBS>::solve(const eckit::Co
   Log::info() << "QuadratureSolver: Mapping increment to observation space." << std::endl;
   
   Dual_ dy, dz_in;
-  H_mat.multiply(dx, dy);
-  R_invsqrt_mat.multiply(dy, dz_in);
-
-  Log::info() << "QuadratureSolver: Setting up quadrature rule." << std::endl;
+  H_mat_.multiply(dx, dy);
+  R_invsqrt_mat_.multiply(dy, dz_in);
   
 // Set up nodes and weights for Gauss-Legendre quadrature
   std::vector<double> weights;
@@ -92,7 +90,7 @@ ControlIncrement<MODEL, OBS> QuadratureSolver<MODEL, OBS>::solve(const eckit::Co
 
   Log::info() << "QuadratureSolver: Beginning linear system solves." << std::endl;
   std::vector<Dual_> dz_out;
-  SLCG(dz_out, NormalHBHt_mat, dz_in, nodes, quadsize, maxiters, tolerance);
+  SLCG(dz_out, NormalHBHt_mat_, dz_in, nodes, quadsize, maxiters, tolerance);
 
   Log::info() << "QuadratureSolver: Recombining solutions." << std::endl;
 
@@ -100,8 +98,7 @@ ControlIncrement<MODEL, OBS> QuadratureSolver<MODEL, OBS>::solve(const eckit::Co
   final_inc_obspace.zero();
 
   for(int q = 0; q < quadsize; q++) {
-    dz_out[q]         *= weights[q];
-    final_inc_obspace += dz_out[q];
+    final_inc_obspace.axpy(weights[q], dz_out[q]);
   }
 
   Log::info() << "QuadratureSolver: Mapping increment to state space." << std::endl;
@@ -109,17 +106,14 @@ ControlIncrement<MODEL, OBS> QuadratureSolver<MODEL, OBS>::solve(const eckit::Co
   Dual_    tmp_dual(final_inc_obspace);
   CtrlInc_ tmp_ctrl(dx), dx_out(dx);
 
-  R_invsqrt_mat.multiply(final_inc_obspace, tmp_dual);
-  Ht_mat.multiply(tmp_dual, tmp_ctrl);
-  B_mat.multiply(tmp_ctrl, dx_out);
+  R_invsqrt_mat_.multiply(final_inc_obspace, tmp_dual);
+  Ht_mat_.multiply(tmp_dual, tmp_ctrl);
+  B_mat_.multiply(tmp_ctrl, dx_out);
 
   Log::info() << "QuadratureSolver: Applying adjustment to input increment." << std::endl;
+  dx.axpy(-1, dx_out);
 
-  dx_out *= -1;
-  dx_out += dx;
-
-  Log::info() << "QuadratureSolver: finished." << std::endl;
-  return dx_out;
+  Log::info() << "QuadratureSolver: Finished." << std::endl;
 }
 
 }  // namespace oops
