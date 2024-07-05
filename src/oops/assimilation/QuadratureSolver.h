@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "eckit/config/Configuration.h"
 #include "oops/assimilation/ControlIncrement.h"
 #include "oops/assimilation/DualVector.h"
 #include "oops/assimilation/CostFunction.h"
@@ -42,7 +43,7 @@ class QuadratureSolver {
   public:
     QuadratureSolver(const CostFct_ & J);
     ~QuadratureSolver() {}
-    ControlIncrement<MODEL, OBS> solve(CtrlInc_ dx, const int quadsize, const int maxiter, const double tol);
+    ControlIncrement<MODEL, OBS> solve(const eckit::Configuration & config, CtrlInc_ dx);
 
   private:
     H_          H_mat;
@@ -65,8 +66,16 @@ QuadratureSolver<MODEL, OBS>::QuadratureSolver(const CostFct_ & J)
 // -----------------------------------------------------------------------------
 
 template<typename MODEL, typename OBS>
-ControlIncrement<MODEL, OBS> QuadratureSolver<MODEL, OBS>::solve(CtrlInc_ dx, const int quadsize, const int maxiter, const double tol) {
+ControlIncrement<MODEL, OBS> QuadratureSolver<MODEL, OBS>::solve(const eckit::Configuration & config, CtrlInc_ dx) {
   Log::info() << "QuadratureSolver: Starting." << std::endl;
+
+  int quadsize     = config.getInt("quadsize");
+  int maxiters     = config.getInt("maxiters");
+  double tolerance = config.getDouble("tolerance");
+
+  Log::info() << "QuadratureSolver: Quadrature size           = " << quadsize << std::endl;
+  Log::info() << "QuadratureSolver: Max iteration count       = " << maxiters << std::endl;
+  Log::info() << "QuadratureSolver: Linear solution tolerance = " << tolerance << std::endl;
   Log::info() << "QuadratureSolver: Mapping increment to observation space." << std::endl;
   
   Dual_ dy, dz_in;
@@ -74,6 +83,7 @@ ControlIncrement<MODEL, OBS> QuadratureSolver<MODEL, OBS>::solve(CtrlInc_ dx, co
   R_invsqrt_mat.multiply(dy, dz_in);
 
   Log::info() << "QuadratureSolver: Setting up quadrature rule." << std::endl;
+  
 // Set up nodes and weights for Gauss-Legendre quadrature
   std::vector<double> weights;
   std::vector<double> nodes;
@@ -82,7 +92,7 @@ ControlIncrement<MODEL, OBS> QuadratureSolver<MODEL, OBS>::solve(CtrlInc_ dx, co
 
   Log::info() << "QuadratureSolver: Beginning linear system solves." << std::endl;
   std::vector<Dual_> dz_out;
-  SLCG(dz_out, NormalHBHt_mat, dz_in, nodes, quadsize, maxiter, tol);
+  SLCG(dz_out, NormalHBHt_mat, dz_in, nodes, quadsize, maxiters, tolerance);
 
   Log::info() << "QuadratureSolver: Recombining solutions." << std::endl;
 

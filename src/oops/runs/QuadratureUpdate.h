@@ -146,14 +146,9 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
     CtrlInc_ dx_bg(Jb);
     dx_bg.diff(xens_bg_ctrl, x0);
 
-//  Determining quadrature update settings
-    int quadsize = params.quadConfig.value().getInt("quadsize");
-    int maxiters = params.quadConfig.value().getInt("maxiters");
-    double tol   = params.quadConfig.value().getDouble("tolerance");
-
 //  Computing the analysis increment via numerical quadrature.
     QuadSolver_ quadsolver(*J);
-    CtrlInc_ dx_an = quadsolver.solve(dx_bg, quadsize, maxiters, tol);
+    CtrlInc_ dx_an = quadsolver.solve(params.quadConfig.value(), dx_bg);
     
 //  Add the analysis increment to the background, forming an analysis ensemble member.
     CtrlVar_ xens_an_ctrl(x0);
