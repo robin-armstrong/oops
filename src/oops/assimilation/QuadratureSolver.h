@@ -73,9 +73,10 @@ void QuadratureSolver<MODEL, OBS>::solve(const eckit::Configuration & config, Ct
   int maxiters     = config.getInt("maxiters");
   double tolerance = config.getDouble("tolerance");
 
-  Log::info() << "QuadratureSolver: Quadrature size           = " << quadsize << std::endl;
-  Log::info() << "QuadratureSolver: Max iteration count       = " << maxiters << std::endl;
-  Log::info() << "QuadratureSolver: Linear solution tolerance = " << tolerance << std::endl;
+  Log::info() << "QuadratureSolver:" << std::endl;
+  Log::info() << "  quadrature size           = " << quadsize << std::endl;
+  Log::info() << "  max iteration count       = " << maxiters << std::endl;
+  Log::info() << "  linear solution tolerance = " << tolerance << std::endl;
   Log::info() << "QuadratureSolver: Mapping increment to observation space." << std::endl;
   
   Dual_ dy, dz_in;

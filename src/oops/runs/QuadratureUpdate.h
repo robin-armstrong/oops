@@ -43,6 +43,9 @@ class QuadratureUpdateParameters : public ApplicationParameters {
   /// Parameters for ensemble member to be updated.
   RequiredParameter<eckit::LocalConfiguration> ensMemberConfig{"ensemble state", this};
 
+  /// Parameters for ensemble mean.
+  RequiredParameter<eckit::LocalConfiguration> ensMeanConfig{"ensemble mean", this};
+
   /// Parameters for variational assimilation
   RequiredParameter<eckit::LocalConfiguration> varConfig{"variational", this};
 
@@ -94,36 +97,7 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
     QuadParams_ params;
     if (validate) params.validate(fullConfig);
     params.deserialize(fullConfig);
-
-//  Setup outer loop
-    eckit::LocalConfiguration varConf(fullConfig, "variational");
-    std::vector<eckit::LocalConfiguration> iterconfs;
-    varConf.get("iterations", iterconfs);
-
-//  Setup cost function
-    std::unique_ptr<CostFunction<MODEL, OBS>>
-      J(CostFactory<MODEL, OBS>::create(params.cfConfig, this->getComm()));
-    const JbTotal_ & Jb = J->jb();
-
-//  Get the forecast mean and auxiliary information for model and obs
-    CtrlVar_ x0(Jb.getBackground());
-    ModelAux_ & maux = x0.modVar();
-    ObsAux_ & oaux   = x0.obsVar();
-
-//  Setup post-processor for cost function evaluation
-    PostProcessor<State_> eval_post;
-    if (iterconfs[0].has("prints")) {
-      const eckit::LocalConfiguration prtConfig(iterconfs[0], "prints");
-      eval_post.enrollProcessor(new StateInfo<State_>("traj", prtConfig));
-    }
-
-/// "Dummy" evaluation of test function, which serves to properly initialize
-/// the geometry information. Without this, the program will segfault upon
-/// trying to initialize a ControlIncrement.
-
-    iterconfs[0].set("linearize", true);
-    J->evaluate(x0, iterconfs[0], eval_post);
-    util::printRunStats("QuadratureUpdate linearize " + std::to_string(0));
+    int ens_id = params.ensMemberConfig.value().getInt("member id");
 
 //  Setup independent geometry configuration object for reading ensemble members
     const Geometry_ geometry(params.cfConfig.value().getSubConfiguration("geometry"), this->getComm(), mpi::myself());
@@ -132,31 +106,62 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
     State4D_ xens_bg_state(geometry, params.ensMemberConfig);
     Log::test() << "Background ensemble state: " << xens_bg_state << std::endl;
 
+//  Get the ensemble mean
+    State4D_ mean_bg_state(geometry, params.ensMeanConfig);
+    Log::test() << "Background ensemble mean: " << mean_bg_state << std::endl;
+  
+//  Setup cost function
+    std::unique_ptr<CostFunction<MODEL, OBS>>
+      J(CostFactory<MODEL, OBS>::create(params.cfConfig, this->getComm()));
+
+//  Get the forecast mean and auxiliary information for model and obs
+    CtrlVar_ x0(J->jb().getBackground());
+    ModelAux_ & maux = x0.modVar();
+    ObsAux_ & oaux   = x0.obsVar();
+
 //  Wrapping the ensemble state in a control variable
     std::shared_ptr<State4D_>  xens_ptr(&xens_bg_state);
     std::shared_ptr<ModelAux_> maux_ptr(&maux);
     std::shared_ptr<ObsAux_>   oaux_ptr(&oaux);
     CtrlVar_                   xens_bg_ctrl(xens_ptr, maux_ptr, oaux_ptr);
 
-//  Taking difference between background and ensemble state to form the background increment.
-    CtrlInc_ dx(Jb);
-    dx.diff(xens_bg_ctrl, x0);
+//  Wrapping the ensemble mean
+    std::shared_ptr<State4D_>  mean_ptr(&mean_bg_state);
+    CtrlVar_                   mean_bg_ctrl(mean_ptr, maux_ptr, oaux_ptr);
 
+//  Setup outer loop
+    eckit::LocalConfiguration varConf(fullConfig, "variational");
+    std::vector<eckit::LocalConfiguration> iterconfs;
+    varConf.get("iterations", iterconfs);
+
+/// "Dummy" evaluation of test function, which serves to properly initialize
+/// the geometry information. Without this, the program will segfault upon
+/// trying to initialize a ControlIncrement.
+
+    PostProcessor<State_> eval_post;
+    iterconfs[0].set("linearize", true);
+    J->evaluate(mean_bg_ctrl, iterconfs[0], eval_post);
+    util::printRunStats("QuadratureUpdate linearize " + std::to_string(0));
+
+//  Taking difference between background and ensemble state to form the background increment.
+    CtrlInc_ dx(J->jb());
+    dx.diff(xens_bg_ctrl, mean_bg_ctrl);
+    
 //  Computing the analysis increment via numerical quadrature.
     QuadSolver_ quadsolver(*J);
     quadsolver.solve(params.quadConfig.value(), dx);
     
 //  Add the analysis increment to the background, forming an analysis ensemble member.
-    CtrlVar_ xens_an_ctrl(x0);
+    CtrlVar_ xens_an_ctrl(mean_bg_ctrl);
     J->addIncrement(xens_an_ctrl, dx);
-    State4D_ xens_an_state = xens_an_ctrl.states();
 
 //  Save analysis ensemble member
     eckit::LocalConfiguration outConfig = params.outputConfig.value();
-    xens_an_state.write(outConfig);
+    xens_an_ctrl.states().write(outConfig);
 
     util::printRunStats("QuadratureUpdate end");
     Log::trace() << "QuadratureUpdate: execute done" << std::endl;
+    
     return 0;
   }
 // -----------------------------------------------------------------------------
