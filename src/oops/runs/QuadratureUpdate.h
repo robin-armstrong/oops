@@ -12,7 +12,6 @@
 #include <string>
 
 #include "eckit/config/LocalConfiguration.h"
-#include "oops/assimilation/IncrementalAssimilation.h"
 #include "oops/assimilation/instantiateCostFactory.h"
 #include "oops/assimilation/instantiateMinFactory.h"
 #include "oops/assimilation/QuadratureSolver.h"
@@ -99,35 +98,47 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
     params.deserialize(fullConfig);
     int ens_id = params.ensMemberConfig.value().getInt("member id");
 
-//  Setup independent geometry configuration object for reading ensemble members
-    const Geometry_ geometry(params.cfConfig.value().getSubConfiguration("geometry"), this->getComm(), mpi::myself());
-
-//  Get the ensemble state to be updated
-    State4D_ xens_bg_state(geometry, params.ensMemberConfig);
-    Log::test() << "Background ensemble state: " << xens_bg_state << std::endl;
-
-//  Get the ensemble mean
-    State4D_ mean_bg_state(geometry, params.ensMeanConfig);
-    Log::test() << "Background ensemble mean: " << mean_bg_state << std::endl;
-  
 //  Setup cost function
     std::unique_ptr<CostFunction<MODEL, OBS>>
       J(CostFactory<MODEL, OBS>::create(params.cfConfig, this->getComm()));
 
-//  Get the forecast mean and auxiliary information for model and obs
+//  Get the forecast mean
     CtrlVar_ x0(J->jb().getBackground());
-    ModelAux_ & maux = x0.modVar();
-    ObsAux_ & oaux   = x0.obsVar();
+    // ModelAux_ & maux = x0.modVar();
+    // ObsAux_ & oaux   = x0.obsVar();
+    // std::shared_ptr<ModelAux_> maux = std::make_shared<ModelAux_>
+
+//  Get auxiliary information for model and obs, needed for constructing control variables
+    std::shared_ptr<ObsAux_> oaux   = J->jb().jbObsBias().background();
+    std::shared_ptr<ModelAux_> maux = J->jb().jbModBias().background();
+
+//  Setup independent geometry configuration object for reading ensemble members
+    const Geometry_ geometry(params.cfConfig.value().getSubConfiguration("geometry"), this->getComm(), mpi::myself());
+
+//  Get the ensemble state to be updated
+    // State4D_ xens_bg_state(geometry, params.ensMemberConfig);
+    std::shared_ptr<State4D_> xens_bg_state = std::make_shared<State4D_>(geometry, params.ensMemberConfig);
+    Log::test() << "Background ensemble state: " << *xens_bg_state << std::endl;
+
+//  Get the ensemble mean
+    // State4D_ mean_bg_state(geometry, params.ensMeanConfig);
+    std::shared_ptr<State4D_> mean_bg_state = std::make_shared<State4D_>(geometry, params.ensMeanConfig);
+    Log::test() << "Background ensemble mean: " << *mean_bg_state << std::endl;
 
 //  Wrapping the ensemble state in a control variable
-    std::shared_ptr<State4D_>  xens_ptr(&xens_bg_state);
-    std::shared_ptr<ModelAux_> maux_ptr(&maux);
-    std::shared_ptr<ObsAux_>   oaux_ptr(&oaux);
-    CtrlVar_                   xens_bg_ctrl(xens_ptr, maux_ptr, oaux_ptr);
+    // std::shared_ptr<State4D_>  xens_ptr(&xens_bg_state);
+    // std::shared_ptr<ModelAux_> maux_ptr(&maux);
+    // std::shared_ptr<ObsAux_>   oaux_ptr(&oaux);
+    // CtrlVar_                   xens_bg_ctrl(xens_ptr, maux_ptr, oaux_ptr);
+    CtrlVar_                   xens_bg_ctrl(xens_bg_state, maux, oaux);
 
-//  Wrapping the ensemble mean
-    std::shared_ptr<State4D_>  mean_ptr(&mean_bg_state);
-    CtrlVar_                   mean_bg_ctrl(mean_ptr, maux_ptr, oaux_ptr);
+//  Wrapping the ensemble mean in a control variable
+    // !!!!!!!!!!!!!!!!!!!!!!!
+    // NOTE: mean_ptr is the thing which gets double free'd causing the crash!!!
+    // !!!!!!!!!!!!!!!!!!!!!!!
+    // std::shared_ptr<State4D_>  mean_ptr(&mean_bg_state);
+    // CtrlVar_                   mean_bg_ctrl(mean_ptr, maux_ptr, oaux_ptr);
+    CtrlVar_                   mean_bg_ctrl(mean_bg_state, maux, oaux);
 
 //  Setup outer loop
     eckit::LocalConfiguration varConf(fullConfig, "variational");

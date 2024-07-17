@@ -46,22 +46,19 @@ class QuadratureSolver {
     void solve(const eckit::Configuration & config, CtrlInc_ dx);
 
   private:
-    H_          H_mat_;
-    Ht_         Ht_mat_;
-    B_          B_mat_;
-    R_invsqrt_  R_invsqrt_mat_;
-    NormalHBHt_ NormalHBHt_mat_;
-    double      PI;
+    const H_          H_mat_;
+    const Ht_         Ht_mat_;
+    const B_          B_mat_;
+    const R_invsqrt_  R_invsqrt_mat_;
+    const NormalHBHt_ NormalHBHt_mat_;
+    const double      PI;
 };
 
 // =============================================================================
 
 template<typename MODEL, typename OBS>
 QuadratureSolver<MODEL, OBS>::QuadratureSolver(const CostFct_ & J)
-  : H_mat_(J), Ht_mat_(J), B_mat_(J), R_invsqrt_mat_(J), NormalHBHt_mat_(J)
-{
-  this->PI = 4*atan(1);
-}
+  : H_mat_(J), Ht_mat_(J), B_mat_(J), R_invsqrt_mat_(J), NormalHBHt_mat_(J), PI(4*atan(1)) {}
 
 // -----------------------------------------------------------------------------
 
@@ -90,29 +87,29 @@ void QuadratureSolver<MODEL, OBS>::solve(const eckit::Configuration & config, Ct
   prepareEAKFQuad(quadsize, nodes, weights);
 
   Log::info() << "QuadratureSolver: Beginning linear system solves." << std::endl;
-  std::vector<Dual_> dz_out;
-  SLCG(dz_out, NormalHBHt_mat_, dz_in, nodes, quadsize, maxiters, tolerance);
+  std::vector<Dual_> dz_sols;
+  SLCG(dz_sols, NormalHBHt_mat_, dz_in, nodes, quadsize, maxiters, tolerance);
 
   Log::info() << "QuadratureSolver: Recombining solutions." << std::endl;
 
-  Dual_ final_inc_obspace(dz_out[0]);
-  final_inc_obspace.zero();
+  Dual_ dz_out(dz_sols[0]);
+  dz_out.zero();
 
   for(int q = 0; q < quadsize; q++) {
-    final_inc_obspace.axpy(weights[q], dz_out[q]);
+    dz_out.axpy(weights[q], dz_sols[q]);
   }
 
   Log::info() << "QuadratureSolver: Mapping increment to state space." << std::endl;
 
-  Dual_    tmp_dual(final_inc_obspace);
-  CtrlInc_ tmp_ctrl(dx), dx_out(dx);
+  Dual_    tmp_dual(dz_out);
+  CtrlInc_ tmp_ctrl(dx), dx_inc(dx);
 
-  R_invsqrt_mat_.multiply(final_inc_obspace, tmp_dual);
+  R_invsqrt_mat_.multiply(dz_out, tmp_dual);
   Ht_mat_.multiply(tmp_dual, tmp_ctrl);
-  B_mat_.multiply(tmp_ctrl, dx_out);
+  B_mat_.multiply(tmp_ctrl, dx_inc);
 
   Log::info() << "QuadratureSolver: Applying adjustment to input increment." << std::endl;
-  dx.axpy(-1, dx_out);
+  dx.axpy(-1, dx_inc);
 
   Log::info() << "QuadratureSolver: Finished." << std::endl;
 }

@@ -68,10 +68,10 @@ void NormalizedHBHtMatrix<MODEL, OBS>::multiply(const Dual_ & dy, Dual_ & dz) co
 // Increment counter
   iter_++;
 
-  Dual_ dz_in(dy), dz_out(dy);
-  R_invsqrt_mat_.multiply(dy, dz_in);
-  HBHt_mat_.multiply(dz_in, dz_out);
-  R_invsqrt_mat_.multiply(dz_out, dz);
+  Dual_ dw_in(dy), dw_out(dy);
+  R_invsqrt_mat_.multiply(dy, dw_in);
+  HBHt_mat_.multiply(dw_in, dw_out);
+  R_invsqrt_mat_.multiply(dw_out, dz);
 }
 
 // -----------------------------------------------------------------------------
