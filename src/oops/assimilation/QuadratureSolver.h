@@ -43,7 +43,7 @@ class QuadratureSolver {
   public:
     QuadratureSolver(const CostFct_ & J);
     ~QuadratureSolver() {}
-    void solve(const eckit::Configuration & config, CtrlInc_ dx);
+    void solve(CtrlInc_ dx, const eckit::Configuration & config);
 
   private:
     const H_          H_mat_;
@@ -63,7 +63,7 @@ QuadratureSolver<MODEL, OBS>::QuadratureSolver(const CostFct_ & J)
 // -----------------------------------------------------------------------------
 
 template<typename MODEL, typename OBS>
-void QuadratureSolver<MODEL, OBS>::solve(const eckit::Configuration & config, CtrlInc_ dx) {
+void QuadratureSolver<MODEL, OBS>::solve(CtrlInc_ dx, const eckit::Configuration & config) {
   Log::info() << "QuadratureSolver: Starting." << std::endl;
 
   int quadsize     = config.getInt("quadsize");

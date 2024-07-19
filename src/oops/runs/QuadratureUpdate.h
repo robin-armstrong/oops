@@ -102,43 +102,22 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
     std::unique_ptr<CostFunction<MODEL, OBS>>
       J(CostFactory<MODEL, OBS>::create(params.cfConfig, this->getComm()));
 
-//  Get the forecast mean
-    CtrlVar_ x0(J->jb().getBackground());
-    // ModelAux_ & maux = x0.modVar();
-    // ObsAux_ & oaux   = x0.obsVar();
-    // std::shared_ptr<ModelAux_> maux = std::make_shared<ModelAux_>
-
 //  Get auxiliary information for model and obs, needed for constructing control variables
     std::shared_ptr<ObsAux_> oaux   = J->jb().jbObsBias().background();
     std::shared_ptr<ModelAux_> maux = J->jb().jbModBias().background();
 
-//  Setup independent geometry configuration object for reading ensemble members
+//  Setup geometry for reading ensemble data
     const Geometry_ geometry(params.cfConfig.value().getSubConfiguration("geometry"), this->getComm(), mpi::myself());
 
-//  Get the ensemble state to be updated
-    // State4D_ xens_bg_state(geometry, params.ensMemberConfig);
-    std::shared_ptr<State4D_> xens_bg_state = std::make_shared<State4D_>(geometry, params.ensMemberConfig);
-    Log::test() << "Background ensemble state: " << *xens_bg_state << std::endl;
-
-//  Get the ensemble mean
-    // State4D_ mean_bg_state(geometry, params.ensMeanConfig);
+//  Get the ensemble state and ensemble mean
+    std::shared_ptr<State4D_> ens_bg_state = std::make_shared<State4D_>(geometry, params.ensMemberConfig);
+    Log::test() << "Background ensemble state: " << *ens_bg_state << std::endl;
     std::shared_ptr<State4D_> mean_bg_state = std::make_shared<State4D_>(geometry, params.ensMeanConfig);
     Log::test() << "Background ensemble mean: " << *mean_bg_state << std::endl;
 
-//  Wrapping the ensemble state in a control variable
-    // std::shared_ptr<State4D_>  xens_ptr(&xens_bg_state);
-    // std::shared_ptr<ModelAux_> maux_ptr(&maux);
-    // std::shared_ptr<ObsAux_>   oaux_ptr(&oaux);
-    // CtrlVar_                   xens_bg_ctrl(xens_ptr, maux_ptr, oaux_ptr);
-    CtrlVar_                   xens_bg_ctrl(xens_bg_state, maux, oaux);
-
-//  Wrapping the ensemble mean in a control variable
-    // !!!!!!!!!!!!!!!!!!!!!!!
-    // NOTE: mean_ptr is the thing which gets double free'd causing the crash!!!
-    // !!!!!!!!!!!!!!!!!!!!!!!
-    // std::shared_ptr<State4D_>  mean_ptr(&mean_bg_state);
-    // CtrlVar_                   mean_bg_ctrl(mean_ptr, maux_ptr, oaux_ptr);
-    CtrlVar_                   mean_bg_ctrl(mean_bg_state, maux, oaux);
+//  Wrapping the ensemble data in control variables
+    CtrlVar_ ens_bg_ctrl(ens_bg_state, maux, oaux);
+    CtrlVar_ mean_bg_ctrl(mean_bg_state, maux, oaux);
 
 //  Setup outer loop
     eckit::LocalConfiguration varConf(fullConfig, "variational");
@@ -156,19 +135,19 @@ template <typename MODEL, typename OBS> class QuadratureUpdate : public Applicat
 
 //  Taking difference between background and ensemble state to form the background increment.
     CtrlInc_ dx(J->jb());
-    dx.diff(xens_bg_ctrl, mean_bg_ctrl);
+    dx.diff(ens_bg_ctrl, mean_bg_ctrl);
     
 //  Computing the analysis increment via numerical quadrature.
     QuadSolver_ quadsolver(*J);
-    quadsolver.solve(params.quadConfig.value(), dx);
+    quadsolver.solve(dx, params.quadConfig.value());
     
 //  Add the analysis increment to the background, forming an analysis ensemble member.
-    CtrlVar_ xens_an_ctrl(mean_bg_ctrl);
-    J->addIncrement(xens_an_ctrl, dx);
+    CtrlVar_ ens_an_ctrl(mean_bg_ctrl);
+    J->addIncrement(ens_an_ctrl, dx);
 
 //  Save analysis ensemble member
     eckit::LocalConfiguration outConfig = params.outputConfig.value();
-    xens_an_ctrl.states().write(outConfig);
+    ens_an_ctrl.states().write(outConfig);  // ACTUAL "WRITE" AT: mpas-jedi/src/mpasjedi/Fields/mpas_field_mod.F90, subroutine write_fields, called in mpas_state_interface_mod.F90 subroutine mpas_state_write_file_c. outConfig passed as the c_conf argument of mpas_state_write_file_c.
 
     util::printRunStats("QuadratureUpdate end");
     Log::trace() << "QuadratureUpdate: execute done" << std::endl;
