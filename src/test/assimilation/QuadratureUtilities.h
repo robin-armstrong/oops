@@ -41,7 +41,7 @@ namespace test {
     std::vector<double> nodes(quadsize, 0);
     std::vector<double> weights(quadsize, 0);
 
-    oops::gaussLegendre(quadsize, nodes, weights);
+    oops::gaussLegendre(nodes, weights, quadsize);
 
     double pi_appx    = 0;
     double min_node   = nodes[0];
@@ -134,11 +134,12 @@ namespace test {
     int    quadsize = 10;
     int    maxiter  = 2;
     double slcg_tol = 1e-5;
+    double scale    = 1.;
 
     std::vector<double> nodes, weights;
     std::vector<Vector2D> X;
-    oops::gaussLegendre(quadsize, nodes, weights);
-    oops::prepare_quad_rule(quadsize, nodes, weights);
+    oops::gaussLegendre(nodes, weights, quadsize);
+    oops::prepare_quad_rule(nodes, weights, quadsize, scale);
 
     // computing the terms in the quadrature
     SLCG(X, HBHt, Hb_prior, nodes, quadsize, maxiter, slcg_tol);

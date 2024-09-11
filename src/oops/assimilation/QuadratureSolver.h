@@ -66,14 +66,16 @@ template<typename MODEL, typename OBS>
 void QuadratureSolver<MODEL, OBS>::solve(CtrlInc_ & dx, const eckit::Configuration & config) {
   Log::info() << "QuadratureSolver: Starting." << std::endl;
 
-  int quadsize     = config.getInt("quadsize");
-  int maxiters     = config.getInt("maxiters");
+  int    quadsize  = config.getInt("quadsize");
+  int    maxiters  = config.getInt("maxiters");
   double tolerance = config.getDouble("tolerance");
+  double scale     = config.getDouble("scale");
 
   Log::info() << "QuadratureSolver:" << std::endl;
-  Log::info() << "  quadrature size           = " << quadsize << std::endl;
-  Log::info() << "  max iteration count       = " << maxiters << std::endl;
+  Log::info() << "  quadrature size           = " << quadsize  << std::endl;
+  Log::info() << "  max iteration count       = " << maxiters  << std::endl;
   Log::info() << "  linear solution tolerance = " << tolerance << std::endl;
+  Log::info() << "  quadrature scaling        = " << scale     << std::endl;
   Log::info() << "QuadratureSolver: Mapping increment to observation space." << std::endl;
   
   Dual_ dy, dz_in;
@@ -83,7 +85,7 @@ void QuadratureSolver<MODEL, OBS>::solve(CtrlInc_ & dx, const eckit::Configurati
 // Set up nodes and weights for Gauss-Legendre quadrature
   std::vector<double> weights;
   std::vector<double> nodes;
-  prepare_quad_rule(quadsize, nodes, weights);
+  prepare_quad_rule(nodes, weights, quadsize, scale);
 
   Log::info() << "QuadratureSolver: Beginning linear system solves." << std::endl;
   std::vector<Dual_> dz_sols;

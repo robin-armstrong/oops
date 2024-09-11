@@ -19,7 +19,7 @@ namespace oops {
 
 //-------------------------------------------------------------------------------------------------
 // Computes nodes and weights for Gauss-Legendre quadrature using the Golub-Welsch algorithm.
-void gaussLegendre(const int quadsize, std::vector<double>& nodes, std::vector<double>& weights) {
+void gaussLegendre(std::vector<double>& nodes, std::vector<double>& weights, const int quadsize) {
   Log::info() << "GaussLegendre: Starting and forming Golub-Welsch matrix." << std::endl;
   
   Eigen::MatrixXf GW(quadsize, quadsize);
@@ -48,18 +48,18 @@ void gaussLegendre(const int quadsize, std::vector<double>& nodes, std::vector<d
   }
 }
 
-void prepare_quad_rule(const int quadsize, std::vector<double>& nodes, std::vector<double>& weights) {
+void prepare_quad_rule(std::vector<double>& nodes, std::vector<double>& weights, const int quadsize, const double scale) {
   const double PI = 4*atan(1);
-  double s, w;
+  double s, r;
 
-  gaussLegendre(quadsize, nodes, weights);
+  gaussLegendre(nodes, weights, quadsize);
   
   for (int q = 0; q < quadsize; q++) {
-    s = pow(tan(.25*PI*(nodes[q] + 1)), 2);
-    w = .5*weights[q]/pow(cos(.25*PI*(nodes[q] + 1)), 2);
+    s = scale*pow(tan(.25*PI*(nodes[q] + 1)), 2);
+    r = sqrt(scale)/pow(cos(.25*PI*(nodes[q] + 1)), 2);
     
-    nodes[q]   = s + 1;
-    weights[q] = w/(s + 1);
+    nodes[q]    = s + 1;
+    weights[q] *= .5*r/(s + 1);
   }
 }
 
