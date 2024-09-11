@@ -48,9 +48,11 @@ void gaussLegendre(const int quadsize, std::vector<double>& nodes, std::vector<d
   }
 }
 
-void prepareEAKFQuad(const int quadsize, std::vector<double>& nodes, std::vector<double>& weights) {
+void prepare_quad_rule(const int quadsize, std::vector<double>& nodes, std::vector<double>& weights) {
   const double PI = 4*atan(1);
   double s, w;
+
+  gaussLegendre(quadsize, nodes, weights);
   
   for (int q = 0; q < quadsize; q++) {
     s = pow(tan(.25*PI*(nodes[q] + 1)), 2);

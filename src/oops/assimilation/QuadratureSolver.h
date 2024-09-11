@@ -83,8 +83,7 @@ void QuadratureSolver<MODEL, OBS>::solve(CtrlInc_ & dx, const eckit::Configurati
 // Set up nodes and weights for Gauss-Legendre quadrature
   std::vector<double> weights;
   std::vector<double> nodes;
-  gaussLegendre(quadsize, nodes, weights);
-  prepareEAKFQuad(quadsize, nodes, weights);
+  prepare_quad_rule(quadsize, nodes, weights);
 
   Log::info() << "QuadratureSolver: Beginning linear system solves." << std::endl;
   std::vector<Dual_> dz_sols;
