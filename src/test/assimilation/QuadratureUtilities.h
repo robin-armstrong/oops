@@ -31,39 +31,6 @@ namespace test {
   typedef oops::DiagonalMatrix<Vector3D> Matrix3D;
   typedef oops::DiagonalMatrix<Vector4D> Matrix4D;
 
-  void test_QuadratureUtilities_GaussLegendre()
-  {
-    /* Test the Gauss-Legendre quadrature utility by
-     * integrating 2*sqrt(1 - x^2) over [-1, 1]. The
-     * result should equal pi. */
-    
-    int quadsize = 20;
-    std::vector<double> nodes(quadsize, 0);
-    std::vector<double> weights(quadsize, 0);
-
-    oops::gaussLegendre(nodes, weights, quadsize);
-
-    double pi_appx    = 0;
-    double min_node   = nodes[0];
-    double max_node   = nodes[0];
-    double min_weight = weights[0];
-    double weight_sum = 0;
-
-    for(int q = 0; q < quadsize; q++) {
-      pi_appx    += weights[q]*2*sqrt(1 - pow(nodes[q], 2));
-      min_node    = fmin(min_node, nodes[q]);
-      max_node    = fmax(max_node, nodes[q]);
-      min_weight  = fmin(min_weight, weights[q]);
-      weight_sum += weights[q];
-    }
-
-    EXPECT(oops::is_close_absolute(pi_appx, 4*atan(1), 1.0e-3));
-    EXPECT(oops::is_close_absolute(weight_sum, 2.0, 1.0e-5));
-    EXPECT(min_node >= -(1 + 1.0e-5));
-    EXPECT(max_node <=  (1 + 1.0e-5));
-    EXPECT(min_weight >= 0.);
-  }
-
   void test_QuadratureUtilities_SLCG()
   {
     Vector3D diagA(3, 2, 1);
@@ -136,13 +103,12 @@ namespace test {
     double slcg_tol = 1e-5;
     double scale    = 1.;
 
-    std::vector<double> nodes, weights;
+    std::vector<double> shifts, weights;
     std::vector<Vector2D> X;
-    oops::gaussLegendre(nodes, weights, quadsize);
-    oops::prepare_quad_rule(nodes, weights, quadsize, scale);
+    oops::prepare_quad_rule(shifts, weights, quadsize, scale);
 
     // computing the terms in the quadrature
-    SLCG(X, HBHt, Hb_prior, nodes, quadsize, maxiter, slcg_tol);
+    SLCG(X, HBHt, Hb_prior, shifts, quadsize, maxiter, slcg_tol);
     
     // accumulating the terms
     Vector2D tmp2d(0, 0);
@@ -166,9 +132,9 @@ namespace test {
     EXPECT(oops::is_close_absolute(err_sq, 0., 1e-3));
   }
 
-  CASE("assimilation/QuadratureUtilities/gaussLegendre") {
-    test_QuadratureUtilities_GaussLegendre();
-  }
+  // CASE("assimilation/QuadratureUtilities/gaussLegendre") {
+  //   test_QuadratureUtilities_GaussLegendre();
+  // }
 
   CASE("assimilation/QuadratureUtilities/SLCG") {
     test_QuadratureUtilities_SLCG();

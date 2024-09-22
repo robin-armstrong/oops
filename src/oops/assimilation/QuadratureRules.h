@@ -9,57 +9,40 @@
 #define OOPS_ASSIMILATION_QUADRATURERULES_H_
 
 #include <iostream>
-#include <Eigen/Dense>
-#include <Eigen/Eigenvalues>
 #include <vector>
 
+#include "oops/assimilation/EllipticFunctions.h"
 #include "oops/util/Logger.h"
 
 namespace oops {
 
-//-------------------------------------------------------------------------------------------------
-// Computes nodes and weights for Gauss-Legendre quadrature using the Golub-Welsch algorithm.
-void gaussLegendre(std::vector<double>& nodes, std::vector<double>& weights, const int quadsize) {
-  Log::info() << "GaussLegendre: Starting and forming Golub-Welsch matrix." << std::endl;
+/* Computes shifts and weights for the quadrature-based perturbation update.
+ * Uses formulas from Hale, Higham, and Trefethen, "Computing $A^\alpha$,
+ * $\log(A)$, and Related Matrix Functions by Contour Integrals," SIAM
+ * Journal on Numerical Analysis, 2008. */
+
+void prepare_quad_rule(std::vector<double>& shifts, std::vector<double>& weights,
+                       const int quadsize, const double scale) {
+  const double PI = 4*atan(1);
   
-  Eigen::MatrixXf GW(quadsize, quadsize);
-  GW.setZero();
-
-  for(int q = 0; q + 1 < quadsize; q++) {
-    GW(q+1, q) = .5/sqrt(1 - pow(2*(q + 1), -2));
-    GW(q, q+1) = GW(q+1, q);
-  }
-
-  Log::info() << "GaussLegendre: Eigenvalue decomposition of Golub-Welsch matrix." << std::endl;
-
-  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> solver(quadsize);
-  solver.compute(GW);
-  Eigen::VectorXf evals = solver.eigenvalues();
-  Eigen::MatrixXf evecs = solver.eigenvectors();
-
-  Log::info() << "GaussLegendre: Calculating quadrature weights and nodes." << std::endl;
-
-  nodes.clear();
+  shifts.clear();
   weights.clear();
 
+  double r, s, u;
+  double k  = 1/sqrt(1 + scale);
+  double el = ellipk(sqrt(1 - k*k));
+
   for(int q = 0; q < quadsize; q++) {
-    nodes.push_back(evals(q));
-    weights.push_back(2*pow(evecs(0, q), 2));
-  }
-}
-
-void prepare_quad_rule(std::vector<double>& nodes, std::vector<double>& weights, const int quadsize, const double scale) {
-  const double PI = 4*atan(1);
-  double s, r;
-
-  gaussLegendre(nodes, weights, quadsize);
-  
-  for (int q = 0; q < quadsize; q++) {
-    s = scale*pow(tan(.25*PI*(nodes[q] + 1)), 2);
-    r = sqrt(scale)/pow(cos(.25*PI*(nodes[q] + 1)), 2);
+    u = (q + 1 - .5)/quadsize;
     
-    nodes[q]    = s + 1;
-    weights[q] *= .5*r/(s + 1);
+    std::vector<double> sn_cn_dn = ellipj_imag(el*u, k);
+
+    s = sn_cn_dn[0];
+    s = s*s;
+    r = 2*el*sn_cn_dn[1]*sn_cn_dn[2]/(PI*quadsize);
+
+    shifts.push_back(s + 1);
+    weights.push_back(r/(s + 1));
   }
 }
 

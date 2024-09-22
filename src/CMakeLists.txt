@@ -32,6 +32,7 @@ oops/assimilation/DRPFOMMinimizer.h
 oops/assimilation/DRPLanczosMinimizer.h
 oops/assimilation/DualMinimizer.h
 oops/assimilation/DualVector.h
+oops/assimilation/EllipticFunctions.h
 oops/assimilation/FGMRES.h
 oops/assimilation/FGMRESMinimizer.h
 oops/assimilation/FtnTriDiagSpectrum.F90
