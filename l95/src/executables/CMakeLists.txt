@@ -22,6 +22,10 @@ ecbuild_add_executable( TARGET  l95_4dvar.x
                         SOURCES Main4dvar.cc
                         LIBS    lorenz95 )
 
+ecbuild_add_executable( TARGET  l95_quad_update.x
+                        SOURCES QuadratureUpdate.cc
+                        LIBS    lorenz95 )
+
 ecbuild_add_executable( TARGET  l95_diffstates.x
                         SOURCES DiffStates.cc
                         LIBS    lorenz95 )
