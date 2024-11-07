@@ -79,7 +79,10 @@ void QuadratureSolver<MODEL, OBS>::solve(CtrlInc_ & dx, const eckit::Configurati
   Log::info() << "QuadratureSolver: Mapping increment to observation space." << std::endl;
   
   Dual_ dy, dz_in;
-  H_mat_.multiply(dx, dy);
+  CtrlInc_ dx_tl(dx);   /*a copy of dx that will be acted on by the TL forward operator,
+                          and thus may have its time-stamp changed. */
+
+  H_mat_.multiply(dx_tl, dy);
   R_invsqrt_mat_.multiply(dy, dz_in);
   
 // Set up nodes and weights for Gauss-Legendre quadrature
@@ -103,7 +106,7 @@ void QuadratureSolver<MODEL, OBS>::solve(CtrlInc_ & dx, const eckit::Configurati
   Log::info() << "QuadratureSolver: Mapping increment to state space." << std::endl;
 
   Dual_    tmp_dual(dz_out);
-  CtrlInc_ tmp_ctrl(dx), dx_inc(dx);
+  CtrlInc_ tmp_ctrl(dx_tl), dx_inc(dx);
 
   R_invsqrt_mat_.multiply(dz_out, tmp_dual);
   Ht_mat_.multiply(tmp_dual, tmp_ctrl);
